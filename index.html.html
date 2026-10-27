@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MISI KATA HUBUNG: CABARAN MINDA!</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Google Fonts: Fredoka & Outfit (Gaya Mainan/Toy Story) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- MediaPipe Hands & Camera Utils CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <style>
+    body {
+      font-family: 'Fredoka', 'Outfit', sans-serif;
+      background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 50%, #1d4ed8 100%);
+      user-select: none;
+      -webkit-user-select: none;
+      overflow-x: hidden;
+    }
+
+    /* Gaya Tema Mainan / Toy Story-esque */
+    .toy-border {
+      border: 4px solid #facc15;
+      box-shadow: 0 8px 0 #b45309, 0 12px 20px rgba(0,0,0,0.3);
+    }
+
+    .toy-card {
+      background: #ffffff;
+      border-radius: 1.5rem;
+      border: 4px solid #1e293b;
+      box-shadow: 0 10px 0 #0f172a, 0 15px 25px rgba(0,0,0,0.25);
+    }
+
+    .toy-btn {
+      transition: all 0.15s ease;
+      box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+    }
+
+    .toy-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+    }
+
+    /* Kotak Misteri 4 Penjuru */
+    .mystery-box {
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, background-color 0.2s;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .mystery-box.hovered {
+      transform: scale(1.05);
+      border-color: #f59e0b !important;
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.8) !important;
+    }
+
+    .mystery-box.correct {
+      background-color: #22c55e !important;
+      border-color: #15803d !important;
+      color: white !important;
+      animation: pulse-correct 0.6s infinite alternate;
+    }
+
+    .mystery-box.wrong {
+      background-color: #ef4444 !important;
+      border-color: #b91c1c !important;
+      color: white !important;
+      animation: shake 0.4s ease-in-out;
+    }
+
+    @keyframes pulse-correct {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.06); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-10px); }
+      40%, 80% { transform: translateX(10px); }
+    }
+
+    /* Penunjuk Kursor Jari Telunjuk */
+    #finger-cursor {
+      position: fixed;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.85);
+      border: 3px solid #ffffff;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.9), 0 0 25px rgba(239, 68, 68, 0.8);
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      display: none;
+      transition: width 0.1s, height 0.1s, background-color 0.2s;
+    }
+
+    #finger-cursor::after {
+      content: '👉';
+      font-size: 20px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Bulatan Masa Bertahan (Dwell Progress Circle) */
+    .dwell-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      border-radius: 1.2rem;
+    }
+
+    .dwell-circle-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.2);
+      stroke-width: 8;
+    }
+
+    .dwell-circle-progress {
+      fill: none;
+      stroke: #f59e0b;
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-dasharray: 283;
+      stroke-dashoffset: 283;
+      transition: stroke-dashoffset 0.05s linear;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #facc15;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col justify-between relative p-2 sm:p-4">
+
+  <!-- Penunjuk Jari Telunjuk Visual -->
+  <div id="finger-cursor"></div>
+
+  <!-- KONTEN UTAMA PERMAINAN -->
+  <div id="app-container" class="max-w-6xl w-full mx-auto my-auto relative z-10">
+
+    <!-- ================= 1. SKRIN UTAMA (MENU) ================= -->
+    <div id="screen-start" class="toy-card p-6 sm:p-10 text-center bg-amber-50 border-amber-400">
+      <div class="inline-block bg-yellow-400 text-slate-900 font-extrabold px-6 py-2 rounded-full text-sm sm:text-base mb-4 shadow-md uppercase tracking-wide">
+        Subjek Bahasa Melayu Tahun 4
+      </div>
+      
+      <h1 class="text-3xl sm:text-5xl font-black text-blue-600 tracking-wide mb-2 drop-shadow-md">
+        OPERASI PADAN KATA!
+      </h1>
+      <h2 class="text-xl sm:text-2xl font-bold text-amber-600 mb-6">
+        MISI KATA HUBUNG: CABARAN MINDA!
+      </h2>
+      
+      <p class="text-slate-600 text-base sm:text-lg mb-6 max-w-2xl mx-auto font-medium">
+        "Kenali, Cari dan Takluki Kata Hubung!" <br>
+        Uji pengetahuan anda tentang <span class="text-blue-600 font-bold">Kata Hubung Gabungan</span>, 
+        <span class="text-emerald-600 font-bold">Pancangan</span>, dan 
+        <span class="text-purple-600 font-bold">Berpasangan</span> dalam 20 soalan interaktif.
+      </p>
+
+      <!-- Pilihan Nama Pemain -->
+      <div class="max-w-md mx-auto mb-6">
+        <label for="player-name-input" class="block text-left text-sm font-bold text-slate-700 mb-2">Nama Pengembara Bahasa:</label>
+        <input type="text" id="player-name-input" placeholder="Masukkan nama anda..." 
+               class="w-full px-4 py-3 rounded-xl border-4 border-amber-300 focus:border-blue-500 focus:outline-none text-lg font-bold text-slate-800">
+      </div>
+
+      <!-- Paparan Rekod Tertinggi -->
+      <div class="bg-amber-100 rounded-2xl p-4 max-w-md mx-auto mb-8 border-2 border-amber-300 shadow-inner flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <i class="fa-solid fa-trophy text-3xl text-yellow-500 animate-bounce"></i>
+          <div class="text-left">
+            <div class="text-xs font-bold text-slate-500 uppercase">Rekod Markah Tertinggi</div>
+            <div id="high-score-display" class="text-xl font-black text-amber-800">0 Mata (0s)</div>
+          </div>
+        </div>
+        <div id="high-score-player" class="text-sm font-bold text-slate-600">Tiada Rekod</div>
+      </div>
+
+      <!-- Pilihan Kawalan Kamera / Tetikus -->
+      <div class="bg-blue-50 rounded-2xl p-4 max-w-md mx-auto mb-8 border-2 border-blue-200 text-left">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-bold text-slate-700 flex items-center gap-2">
+            <i class="fa-solid fa-camera text-blue-500"></i> Pengawalan Kamera Jari:
+          </span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-camera" class="sr-only peer" checked>
+            <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+        <p class="text-xs text-slate-500">
+          Gunakan jari telunjuk di hadapan kamera untuk menuding jawapan! Jika dimatikan, anda boleh gunakan tetikus/sentuhan biasa.
+        </p>
+      </div>
+
+      <!-- Butang Tindakan -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <button id="btn-start-game" class="toy-btn w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white font-extrabold text-xl px-10 py-4 rounded-2xl border-b-4 border-green-700 flex items-center justify-center gap-3">
+          <i class="fa-solid fa-play"></i> MULA MISI
+        </button>
+        <button id="btn-how-to-play" class="toy-btn w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white font-extrabold text-xl px-8 py-4 rounded-2xl border-b-4 border-blue-700 flex items-center justify-center gap-3">
+          <i class="fa-solid fa-circle-question"></i> CARA BERMAIN
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ================= 2. MODAL CARA BERMAIN ================= -->
+    <div id="modal-instructions" class="fixed inset-0 bg-slate-900/80 z-50 hidden flex items-center justify-center p-4">
+      <div class="toy-card bg-white p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
+        <button id="btn-close-instructions" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-2xl font-bold">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-2xl font-black text-blue-600 mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-gamepad"></i> Panduan & Cara Bermain
+        </h3>
+        
+        <div class="space-y-4 text-slate-600 text-sm sm:text-base font-medium">
+          <div class="flex items-start gap-3 bg-amber-50 p-3 rounded-xl border border-amber-200">
+            <span class="bg-amber-400 text-slate-900 rounded-full w-7 h-7 flex items-center justify-center font-bold flex-shrink-0">1</span>
+            <p><strong>4 Kotak Misteri:</strong> Jawapan berada di 4 penjuru skrin (A, B, C, D). Soalan dipaparkan di bahagian tengah.</p>
+          </div>
+          <div class="flex items-start gap-3 bg-blue-50 p-3 rounded-xl border border-blue-200">
+            <span class="bg-blue-400 text-white rounded-full w-7 h-7 flex items-center justify-center font-bold flex-shrink-0">2</span>
+            <p><strong>Pengesanan Jari Telunjuk:</strong> Tuding jari telunjuk anda ke arah kotak jawapan pilihan. Pastikan kamera mendapat pencahayaan yang cukup.</p>
+          </div>
+          <div class="flex items-start gap-3 bg-purple-50 p-3 rounded-xl border border-purple-200">
+            <span class="bg-purple-400 text-white rounded-full w-7 h-7 flex items-center justify-center font-bold flex-shrink-0">3</span>
+            <p><strong>Dwell Time (1 Saat):</strong> Tahan jari telunjuk pada kotak jawapan selama 1 saat sehingga bulatan pemasa lengkap untuk memilih jawapan.</p>
+          </div>
+          <div class="flex items-start gap-3 bg-green-50 p-3 rounded-xl border border-green-200">
+            <span class="bg-green-400 text-white rounded-full w-7 h-7 flex items-center justify-center font-bold flex-shrink-0">4</span>
+            <p><strong>Alternatif Tetikus/Sentuhan:</strong> Anda juga boleh mengklik atau menyentuh terus kotak jawapan jika kamera tidak diaktifkan.</p>
+          </div>
+        </div>
+
+        <button id="btn-close-instructions-2" class="toy-btn mt-6 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl">
+          Faham, Mari Bermain!
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ================= 3. SKRIN PERMAINAN (GAME PLAY) ================= -->
+    <div id="screen-game" class="hidden flex-col gap-3">
+      
+      <!-- Bar Maklumat Atas (Skor, Peringkat, Masa, Buka/Tutup Bunyi) -->
+      <div class="bg-slate-900/90 text-white p-3 sm:p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-2 border-2 border-amber-400">
+        <!-- Peringkat & Soalan -->
+        <div>
+          <div id="level-badge" class="bg-amber-400 text-slate-900 font-extrabold text-xs sm:text-sm px-3 py-1 rounded-full inline-block uppercase">
+            PERINGKAT 1: KENALI KATA HUBUNG
+          </div>
+          <div id="question-progress" class="text-sm sm:text-lg font-bold mt-1 text-amber-200">
+            SOALAN 1 DARIPADA 20
+          </div>
+        </div>
+
+        <!-- Skor & Masa -->
+        <div class="flex items-center gap-4 sm:gap-6">
+          <div class="text-center">
+            <div class="text-xs text-slate-400 uppercase font-bold">Jumlah Skor</div>
+            <div id="score-display" class="text-xl sm:text-2xl font-black text-green-400">0</div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-slate-400 uppercase font-bold">Masa</div>
+            <div id="timer-display" class="text-xl sm:text-2xl font-black text-yellow-300">00:00</div>
+          </div>
+        </div>
+
+        <!-- Kawalan Suara & Pause -->
+        <div class="flex items-center gap-2">
+          <button id="btn-toggle-sound" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center text-amber-400 text-lg border border-slate-600">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+          <button id="btn-pause-game" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center text-amber-400 text-lg border border-slate-600">
+            <i class="fa-solid fa-pause"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bar Kemajuan Soalan (Progress Bar) -->
+      <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700">
+        <div id="progress-bar-fill" class="bg-gradient-to-r from-yellow-400 to-green-400 h-full w-0 transition-all duration-300"></div>
+      </div>
+
+      <!-- SUSUNAN PERMAINAN: 4 KOTAK MISTERI + SOALAN TENGAH -->
+      <div class="grid grid-cols-2 gap-3 sm:gap-4 my-2 relative min-h-[380px] sm:min-h-[460px]">
+
+        <!-- Kotak Misteri A (Kiri Atas) -->
+        <div id="box-0" data-index="0" class="mystery-box toy-card p-3 sm:p-5 bg-yellow-100 border-amber-400 flex flex-col justify-between select-none">
+          <svg class="dwell-svg"><circle class="dwell-circle-bg" cx="50%" cy="50%" r="45"/><circle class="dwell-circle-progress" cx="50%" cy="50%" r="45"/></svg>
+          <div class="flex items-center gap-2">
+            <span class="bg-amber-500 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-base sm:text-lg">A</span>
+            <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">Kotak Misteri A</span>
+          </div>
+          <div id="text-option-0" class="text-slate-800 font-bold text-sm sm:text-lg my-auto text-center">
+            Pilihan Jawapan A
+          </div>
+          <div class="text-right text-amber-500 text-xs font-semibold"><i class="fa-solid fa-box-open"></i></div>
+        </div>
+
+        <!-- Kotak Misteri B (Kanan Atas) -->
+        <div id="box-1" data-index="1" class="mystery-box toy-card p-3 sm:p-5 bg-blue-100 border-blue-400 flex flex-col justify-between select-none">
+          <svg class="dwell-svg"><circle class="dwell-circle-bg" cx="50%" cy="50%" r="45"/><circle class="dwell-circle-progress" cx="50%" cy="50%" r="45"/></svg>
+          <div class="flex items-center gap-2">
+            <span class="bg-blue-500 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-base sm:text-lg">B</span>
+            <span class="text-xs font-bold text-blue-700 uppercase tracking-wider">Kotak Misteri B</span>
+          </div>
+          <div id="text-option-1" class="text-slate-800 font-bold text-sm sm:text-lg my-auto text-center">
+            Pilihan Jawapan B
+          </div>
+          <div class="text-right text-blue-500 text-xs font-semibold"><i class="fa-solid fa-box-open"></i></div>
+        </div>
+
+        <!-- SOALAN UTAMA (Bahagian Tengah Melayang / Dynamic Grid Overlay) -->
+        <div class="col-span-2 my-1 z-10">
+          <div class="toy-card bg-slate-900 border-yellow-400 text-white p-4 sm:p-6 shadow-2xl relative text-center">
+            <span class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-slate-900 font-extrabold px-4 py-1 rounded-full text-xs uppercase shadow-md">
+              Soalan Utama
+            </span>
+            <h3 id="question-text" class="text-base sm:text-2xl font-bold leading-relaxed text-amber-100 mt-2">
+              Apakah maksud kata hubung?
+            </h3>
+          </div>
+        </div>
+
+        <!-- Kotak Misteri C (Kiri Bawah) -->
+        <div id="box-2" data-index="2" class="mystery-box toy-card p-3 sm:p-5 bg-emerald-100 border-emerald-400 flex flex-col justify-between select-none">
+          <svg class="dwell-svg"><circle class="dwell-circle-bg" cx="50%" cy="50%" r="45"/><circle class="dwell-circle-progress" cx="50%" cy="50%" r="45"/></svg>
+          <div class="flex items-center gap-2">
+            <span class="bg-emerald-500 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-base sm:text-lg">C</span>
+            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Kotak Misteri C</span>
+          </div>
+          <div id="text-option-2" class="text-slate-800 font-bold text-sm sm:text-lg my-auto text-center">
+            Pilihan Jawapan C
+          </div>
+          <div class="text-right text-emerald-500 text-xs font-semibold"><i class="fa-solid fa-box-open"></i></div>
+        </div>
+
+        <!-- Kotak Misteri D (Kanan Bawah) -->
+        <div id="box-3" data-index="3" class="mystery-box toy-card p-3 sm:p-5 bg-purple-100 border-purple-400 flex flex-col justify-between select-none">
+          <svg class="dwell-svg"><circle class="dwell-circle-bg" cx="50%" cy="50%" r="45"/><circle class="dwell-circle-progress" cx="50%" cy="50%" r="45"/></svg>
+          <div class="flex items-center gap-2">
+            <span class="bg-purple-500 text-white font-extrabold w-8 h-8 rounded-lg flex items-center justify-center text-base sm:text-lg">D</span>
+            <span class="text-xs font-bold text-purple-700 uppercase tracking-wider">Kotak Misteri D</span>
+          </div>
+          <div id="text-option-3" class="text-slate-800 font-bold text-sm sm:text-lg my-auto text-center">
+            Pilihan Jawapan D
+          </div>
+          <div class="text-right text-purple-500 text-xs font-semibold"><i class="fa-solid fa-box-open"></i></div>
+        </div>
+
+      </div>
+
+      <!-- PANEL PENERANGAN & JAWAPAN (Pop-up selepas menjawab) -->
+      <div id="explanation-panel" class="hidden toy-card bg-white p-4 sm:p-6 border-blue-500 shadow-2xl animate-fade-in">
+        <div class="flex items-start gap-4">
+          <div id="feedback-icon" class="text-4xl text-green-500 flex-shrink-0">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div class="flex-grow">
+            <h4 id="feedback-title" class="text-xl font-extrabold text-green-600 mb-1">Jawapan Tepat! (+100 Mata)</h4>
+            <p id="explanation-text" class="text-slate-700 text-sm sm:text-base font-medium">
+              Penerangan akan dipaparkan di sini.
+            </p>
+            <div id="bonus-display" class="text-xs font-bold text-amber-600 mt-1 hidden">
+              ⚡ Bonus Kelajuan: +10 Mata!
+            </div>
+          </div>
+          <button id="btn-next-question" class="toy-btn bg-amber-500 hover:bg-amber-600 text-slate-900 font-black px-6 py-3 rounded-xl border-b-4 border-amber-700 flex-shrink-0 flex items-center gap-2">
+            SOALAN SETERUSNYA <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ================= 4. SKRIN PENAMAT (RESULTS) ================= -->
+    <div id="screen-result" class="hidden toy-card p-6 sm:p-10 text-center bg-amber-50 border-amber-400">
+      
+      <div id="new-record-banner" class="hidden bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 text-white font-black py-2 px-6 rounded-full text-lg sm:text-xl mb-4 animate-bounce inline-block shadow-lg">
+        🎉 REKOD BAHARU DICAPAI! 🎉
+      </div>
+
+      <h2 class="text-3xl sm:text-5xl font-black text-blue-600 mb-2">MISI SELESAI!</h2>
+      <p class="text-slate-600 font-bold text-lg mb-6">Tahniah pengembara, anda telah menyelesaikan semua soalan!</p>
+
+      <!-- Lencana Pencapaian -->
+      <div class="bg-white p-4 rounded-2xl border-4 border-amber-300 max-w-md mx-auto mb-6 shadow-md">
+        <div id="badge-icon" class="text-6xl text-yellow-500 mb-2">
+          <i class="fa-solid fa-award"></i>
+        </div>
+        <div id="badge-title" class="text-2xl font-black text-amber-700 uppercase">
+          PAKAR KATA HUBUNG
+        </div>
+        <p id="badge-description" class="text-xs sm:text-sm text-slate-600 font-medium mt-1">
+          Pencapaian cemerlang! Anda benar-benar menguasai Kata Hubung.
+        </p>
+      </div>
+
+      <!-- Ringkasan Keputusan -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto mb-8">
+        <div class="bg-blue-100 p-3 rounded-xl border-2 border-blue-300">
+          <div class="text-xs text-blue-600 font-bold uppercase">Jumlah Markah</div>
+          <div id="res-total-score" class="text-xl sm:text-2xl font-black text-blue-800">2000</div>
+        </div>
+        <div class="bg-green-100 p-3 rounded-xl border-2 border-green-300">
+          <div class="text-xs text-green-600 font-bold uppercase">Jawapan Betul</div>
+          <div id="res-correct" class="text-xl sm:text-2xl font-black text-green-800">20 / 20</div>
+        </div>
+        <div class="bg-red-100 p-3 rounded-xl border-2 border-red-300">
+          <div class="text-xs text-red-600 font-bold uppercase">Jawapan Salah</div>
+          <div id="res-wrong" class="text-xl sm:text-2xl font-black text-red-800">0</div>
+        </div>
+        <div class="bg-purple-100 p-3 rounded-xl border-2 border-purple-300">
+          <div class="text-xs text-purple-600 font-bold uppercase">Ketepatan / Masa</div>
+          <div id="res-accuracy" class="text-lg sm:text-xl font-black text-purple-800">100% (01:30)</div>
+        </div>
+      </div>
+
+      <!-- Butang Tindakan Penamat -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <button id="btn-restart" class="toy-btn w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white font-extrabold text-lg px-8 py-4 rounded-2xl border-b-4 border-green-700 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rotate-right"></i> MAIN SEMULA
+        </button>
+        <button id="btn-review" class="toy-btn w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white font-extrabold text-lg px-8 py-4 rounded-2xl border-b-4 border-blue-700 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-list-check"></i> LIHAT SEMULA JAWAPAN
+        </button>
+        <button id="btn-home" class="toy-btn w-full sm:w-auto bg-slate-600 hover:bg-slate-700 text-white font-extrabold text-lg px-8 py-4 rounded-2xl border-b-4 border-slate-800 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-house"></i> MENU UTAMA
+        </button>
+      </div>
+
+    </div>
+
+
+    <!-- ================= 5. SKRIN SEMAKAN JAWAPAN (REVIEW) ================= -->
+    <div id="screen-review" class="hidden toy-card p-6 bg-slate-50 border-slate-300 max-h-[85vh] flex flex-col">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-2xl font-black text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-blue-500"></i> Semakan Jawapan Soalan
+        </h3>
+        <button id="btn-back-to-result" class="toy-btn bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-4 py-2 rounded-xl text-sm">
+          Kembali ke Keputusan
+        </button>
+      </div>
+
+      <!-- Senarai Semakan Soalan -->
+      <div id="review-list" class="space-y-4 overflow-y-auto p-2 pr-4 flex-grow">
+        <!-- Akan diisi secara dinamik oleh JS -->
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ================= PAPARAN KAMERA FLOATING & STATUS ================= -->
+  <div id="camera-container" class="fixed bottom-4 right-4 z-40 bg-slate-900/90 border-4 border-amber-400 rounded-2xl overflow-hidden shadow-2xl w-40 sm:w-52 transition-all">
+    <div class="relative">
+      <video id="webcam-video" class="w-full h-28 sm:h-36 object-cover -scale-x-100" playsinline></video>
+      <canvas id="webcam-canvas" class="absolute top-0 left-0 w-full h-full -scale-x-100 pointer-events-none"></canvas>
+      <div id="camera-status" class="absolute bottom-0 inset-x-0 bg-slate-900/80 text-[10px] text-amber-300 text-center py-0.5 font-bold">
+        Kamera Dijalankan
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ================= JAVASCRIPT PERMAINAN LENGKAP ================= -->
+  <script>
+    /* ==========================================================================
+       1. DATA 20 SOALAN KUIZ MISI KATA HUBUNG
+       ========================================================================== */
+    const QUESTIONS = [
+      // PERINGKAT 1: KENALI KATA HUBUNG (1-5)
+      {
+        level: "PERINGKAT 1: KENALI KATA HUBUNG",
+        question: "Apakah maksud kata hubung?",
+        options: [
+          "Perkataan yang menerangkan sifat sesuatu benda.",
+          "Perkataan yang menghubungkan perkataan, frasa atau ayat.",
+          "Perkataan yang menunjukkan perbuatan seseorang.",
+          "Perkataan yang merujuk kepada nama orang atau tempat."
+        ],
+        correct: 1, // B
+        explanation: "Kata hubung digunakan untuk menghubungkan perkataan, frasa atau klausa dalam ayat."
+      },
+      {
+        level: "PERINGKAT 1: KENALI KATA HUBUNG",
+        question: "Antara berikut, yang manakah merupakan jenis kata hubung yang dipelajari dalam aktiviti ini?",
+        options: [
+          "Kata nama, kata kerja dan kata adjektif.",
+          "Kata tunggal, kata terbitan dan kata ganda.",
+          "Kata hubung gabungan, pancangan dan berpasangan.",
+          "Kata sendi nama, kata arah dan kata bilangan."
+        ],
+        correct: 2, // C
+        explanation: "Permainan ini memfokuskan tiga kategori yang dipelajari, iaitu kata hubung gabungan, pancangan dan berpasangan."
+      },
+      {
+        level: "PERINGKAT 1: KENALI KATA HUBUNG",
+        question: "Berapakah jenis kata hubung yang menjadi fokus dalam pembelajaran ini?",
+        options: [
+          "Satu jenis.",
+          "Dua jenis.",
+          "Tiga jenis.",
+          "Empat jenis."
+        ],
+        correct: 2, // C
+        explanation: "Terdapat tiga kategori kata hubung yang menjadi fokus permainan ini."
+      },
+      {
+        level: "PERINGKAT 1: KENALI KATA HUBUNG",
+        question: "Yang manakah merupakan contoh kata hubung gabungan?",
+        options: [
+          "Kerana.",
+          "Supaya.",
+          "Tetapi.",
+          "Bahawa."
+        ],
+        correct: 2, // C
+        explanation: "\"Tetapi\" ialah kata hubung gabungan yang menunjukkan pertentangan."
+      },
+      {
+        level: "PERINGKAT 1: KENALI KATA HUBUNG",
+        question: "Antara berikut, yang manakah merupakan pasangan kata hubung berpasangan?",
+        options: [
+          "Dan ... tetapi.",
+          "Sama ada ... atau.",
+          "Kerana ... sambil.",
+          "Supaya ... lalu."
+        ],
+        correct: 1, // B
+        explanation: "\"Sama ada ... atau\" ialah pasangan kata hubung yang digunakan untuk menyatakan pilihan antara dua kemungkinan."
+      },
+
+      // PERINGKAT 2: DETEKTIF KATA HUBUNG (6-10)
+      {
+        level: "PERINGKAT 2: DETEKTIF KATA HUBUNG",
+        question: "Kenal pasti kata hubung dalam ayat berikut:\n\"Amir dan Danish bermain bola sepak di padang.\"",
+        options: [
+          "Amir.",
+          "Bermain.",
+          "Dan.",
+          "Padang."
+        ],
+        correct: 2, // C
+        explanation: "Kata hubung \"dan\" menghubungkan dua nama, iaitu Amir dan Danish."
+      },
+      {
+        level: "PERINGKAT 2: DETEKTIF KATA HUBUNG",
+        question: "Apakah jenis kata hubung yang terdapat dalam ayat berikut?\n\"Ibu memasak di dapur manakala kakak mengemas ruang tamu.\"",
+        options: [
+          "Kata hubung pancangan.",
+          "Kata hubung gabungan.",
+          "Kata hubung berpasangan.",
+          "Kata sendi nama."
+        ],
+        correct: 1, // B
+        explanation: "\"Manakala\" digunakan untuk menghubungkan dua klausa yang menunjukkan perbandingan atau perbezaan keadaan."
+      },
+      {
+        level: "PERINGKAT 2: DETEKTIF KATA HUBUNG",
+        question: "Pilih kata hubung pancangan yang menunjukkan tujuan.",
+        options: [
+          "Tetapi.",
+          "Atau.",
+          "Supaya.",
+          "Lalu."
+        ],
+        correct: 2, // C
+        explanation: "\"Supaya\" digunakan untuk menunjukkan tujuan sesuatu tindakan."
+      },
+      {
+        level: "PERINGKAT 2: DETEKTIF KATA HUBUNG",
+        question: "Berapakah kata hubung yang terdapat dalam ayat berikut?\n\"Ali membaca buku sambil menunggu adiknya pulang kerana dia mahu menyiapkan tugasan sekolah.\"",
+        options: [
+          "Satu.",
+          "Dua.",
+          "Tiga.",
+          "Empat."
+        ],
+        correct: 1, // B
+        explanation: "Dua kata hubung yang terdapat dalam ayat tersebut ialah \"sambil\" dan \"kerana\"."
+      },
+      {
+        level: "PERINGKAT 2: DETEKTIF KATA HUBUNG",
+        question: "Antara berikut, yang manakah menggunakan kata hubung berpasangan dengan betul?",
+        options: [
+          "Baik Aina tetapi Siti menghadiri kelas.",
+          "Sama ada Amir dan Danish akan bertanding.",
+          "Bukan sahaja rajin, malah dia juga bertanggungjawab.",
+          "Walaupun hujan tetapi namun mereka bermain."
+        ],
+        correct: 2, // C
+        explanation: "\"Bukan sahaja ... malah\" ialah pasangan kata hubung yang betul. Ayat ini menunjukkan dua sifat positif seseorang."
+      },
+
+      // PERINGKAT 3: CABARAN PEMIKIRAN (11-15)
+      {
+        level: "PERINGKAT 3: CABARAN PEMIKIRAN",
+        question: "Pilih kata hubung yang paling sesuai:\n\"Murid-murid perlu menjaga kebersihan kelas ______ persekitaran sekolah sentiasa bersih.\"",
+        options: [
+          "Tetapi.",
+          "Supaya.",
+          "Atau.",
+          "Manakala."
+        ],
+        correct: 1, // B
+        explanation: "\"Supaya\" menghubungkan tindakan dengan tujuan yang ingin dicapai."
+      },
+      {
+        level: "PERINGKAT 3: CABARAN PEMIKIRAN",
+        question: "Apakah fungsi kata hubung \"kerana\" dalam ayat berikut?\n\"Farah tidak hadir ke sekolah kerana demam.\"",
+        options: [
+          "Menunjukkan pilihan.",
+          "Menunjukkan sebab.",
+          "Menunjukkan pertentangan.",
+          "Menunjukkan perbuatan yang berlaku serentak."
+        ],
+        correct: 1, // B
+        explanation: "\"Kerana\" menunjukkan sebab Farah tidak hadir ke sekolah."
+      },
+      {
+        level: "PERINGKAT 3: CABARAN PEMIKIRAN",
+        question: "Pilih ayat yang menggunakan kata hubung \"walaupun\" dengan betul.",
+        options: [
+          "Walaupun hujan turun, tetapi perlawanan diteruskan.",
+          "Walaupun penat, Aiman tetap membantu ibunya.",
+          "Walaupun kerana sakit, Amir tidak hadir.",
+          "Walaupun supaya berjaya, kita perlu berusaha."
+        ],
+        correct: 1, // B
+        explanation: "Ayat B menggunakan \"walaupun\" dengan betul untuk menunjukkan keadaan yang bertentangan dengan jangkaan. Dalam struktur ayat ini, \"tetapi\" tidak diperlukan."
+      },
+      {
+        level: "PERINGKAT 3: CABARAN PEMIKIRAN",
+        question: "Perhatikan ayat berikut:\n\"Baik murid lelaki mahupun murid perempuan, semuanya perlu mematuhi peraturan sekolah.\"\nApakah jenis kata hubung yang digunakan?",
+        options: [
+          "Kata hubung gabungan.",
+          "Kata hubung pancangan.",
+          "Kata hubung berpasangan.",
+          "Kata penguat."
+        ],
+        correct: 2, // C
+        explanation: "\"Baik ... mahupun\" ialah pasangan kata hubung yang menghubungkan dua golongan dalam pernyataan yang sama."
+      },
+      {
+        level: "PERINGKAT 3: CABARAN PEMIKIRAN",
+        question: "Pilih kata hubung yang menunjukkan dua perbuatan berlaku secara serentak.",
+        options: [
+          "Lalu.",
+          "Tetapi.",
+          "Sambil.",
+          "Maka."
+        ],
+        correct: 2, // C
+        explanation: "\"Sambil\" menunjukkan dua perbuatan yang dilakukan pada masa yang sama."
+      },
+
+      // PERINGKAT 4: MASTER KATA HUBUNG (16-20)
+      {
+        level: "PERINGKAT 4: MASTER KATA HUBUNG",
+        question: "Baca ayat berikut:\n\"Haziq ingin menyertai pertandingan bercerita tetapi dia belum membuat persediaan.\"\nApakah fungsi kata hubung \"tetapi\" dalam ayat tersebut?",
+        options: [
+          "Menunjukkan sebab.",
+          "Menunjukkan pertentangan.",
+          "Menunjukkan tujuan.",
+          "Menunjukkan pilihan."
+        ],
+        correct: 1, // B
+        explanation: "\"Tetapi\" menunjukkan pertentangan antara hasrat Haziq dengan keadaannya yang belum bersedia."
+      },
+      {
+        level: "PERINGKAT 4: MASTER KATA HUBUNG",
+        question: "Perhatikan ayat berikut:\n\"Jika kita rajin berusaha, kita akan memperoleh kejayaan.\"\nApakah jenis kata hubung yang digunakan?",
+        options: [
+          "Kata hubung gabungan.",
+          "Kata hubung pancangan.",
+          "Kata hubung berpasangan.",
+          "Kata arah."
+        ],
+        correct: 1, // B
+        explanation: "\"Jika\" ialah kata hubung pancangan yang menunjukkan syarat."
+      },
+      {
+        level: "PERINGKAT 4: MASTER KATA HUBUNG",
+        question: "Berapakah kata hubung yang terdapat dalam ayat berikut?\n\"Walaupun hujan turun dengan lebat, Aina tetap hadir ke sekolah kerana dia ingin menyertai pertandingan bercerita.\"",
+        options: [
+          "Satu.",
+          "Dua.",
+          "Tiga.",
+          "Empat."
+        ],
+        correct: 1, // B
+        explanation: "Dua kata hubung yang terdapat dalam ayat tersebut ialah \"walaupun\" dan \"kerana\"."
+      },
+      {
+        level: "PERINGKAT 4: MASTER KATA HUBUNG",
+        question: "Pilih ayat yang mengandungi dua kata hubung yang berlainan.",
+        options: [
+          "Adik tidur di dalam bilik.",
+          "Ibu memasak dan ayah membaca surat khabar.",
+          "Aiman belajar bersungguh-sungguh supaya berjaya kerana dia mempunyai cita-cita yang tinggi.",
+          "Murid-murid beratur di luar kelas."
+        ],
+        correct: 2, // C
+        explanation: "Ayat C mengandungi dua kata hubung yang berlainan, iaitu \"supaya\" dan \"kerana\"."
+      },
+      {
+        level: "PERINGKAT 4: MASTER KATA HUBUNG",
+        question: "Baca petikan berikut:\n\"Pada pagi Ahad, Aina dan keluarganya pergi berkelah di tepi sungai. Mereka membawa makanan supaya dapat menikmati hidangan bersama-sama. Walaupun cuaca agak panas, mereka tetap gembira kerana dapat meluangkan masa bersama-sama.\"\nBerdasarkan petikan tersebut, pernyataan manakah yang betul?",
+        options: [
+          "Petikan mengandungi kata hubung gabungan sahaja.",
+          "Petikan mengandungi kata hubung pancangan sahaja.",
+          "Petikan mengandungi kata hubung gabungan dan pancangan.",
+          "Petikan mengandungi kata hubung berpasangan sahaja."
+        ],
+        correct: 2, // C
+        explanation: "Petikan mengandungi kata hubung gabungan \"dan\" serta kata hubung pancangan \"supaya\", \"walaupun\" dan \"kerana\"."
+      }
+    ];
+
+
+    /* ==========================================================================
+       2. SYSTEM AUDIO & KESAN BUNYI (WEB AUDIO API)
+       ========================================================================= */
+    class SoundEffects {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+
+      playTone(freq, type, duration, gainVal = 0.1) {
+        if (!this.enabled) return;
+        try {
+          this.init();
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) { console.error(e); }
+      }
+
+      playHover() {
+        this.playTone(440, 'sine', 0.08, 0.05);
+      }
+
+      playCorrect() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+          setTimeout(() => this.playTone(freq, 'triangle', 0.15, 0.1), idx * 80);
+        });
+      }
+
+      playWrong() {
+        if (!this.enabled) return;
+        this.init();
+        this.playTone(200, 'sawtooth', 0.25, 0.12);
+        setTimeout(() => this.playTone(150, 'sawtooth', 0.3, 0.12), 150);
+      }
+
+      playLevelUp() {
+        if (!this.enabled) return;
+        this.init();
+        [440, 554.37, 659.25, 880].forEach((f, i) => {
+          setTimeout(() => this.playTone(f, 'sine', 0.2, 0.1), i * 100);
+        });
+      }
+
+      playGameEnd() {
+        if (!this.enabled) return;
+        this.init();
+        [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77, 1046.50].forEach((f, i) => {
+          setTimeout(() => this.playTone(f, 'triangle', 0.2, 0.1), i * 90);
+        });
+      }
+    }
+
+    const sound = new SoundEffects();
+
+
+    /* ==========================================================================
+       3. KEADAAN PERMAINAN (GAME STATE)
+       ========================================================================== */
+    let gameState = {
+      playerName: "Pengembara",
+      currentQuestionIndex: 0,
+      score: 0,
+      correctCount: 0,
+      wrongCount: 0,
+      userAnswers: [], // { question, selected, correct, isCorrect }
+      startTime: null,
+      timerInterval: null,
+      elapsedSeconds: 0,
+      questionStartTime: null,
+      isAnswerLocked: false,
+      useCamera: true,
+      soundEnabled: true
+    };
+
+    // Dwell Time Tracking
+    let currentHoveredBox = null;
+    let dwellStartTime = null;
+    const DWELL_DURATION = 1000; // 1 Saat dalam ms
+
+
+    /* ==========================================================================
+       4. PENENTUAN ELEMENT ELEMEN DOM
+       ========================================================================== */
+    const screenStart = document.getElementById('screen-start');
+    const screenGame = document.getElementById('screen-game');
+    const screenResult = document.getElementById('screen-result');
+    const screenReview = document.getElementById('screen-review');
+    const modalInstructions = document.getElementById('modal-instructions');
+
+    const fingerCursor = document.getElementById('finger-cursor');
+    const cameraContainer = document.getElementById('camera-container');
+    const webcamVideo = document.getElementById('webcam-video');
+    const webcamCanvas = document.getElementById('webcam-canvas');
+
+    const scoreDisplay = document.getElementById('score-display');
+    const timerDisplay = document.getElementById('timer-display');
+    const levelBadge = document.getElementById('level-badge');
+    const questionProgress = document.getElementById('question-progress');
+    const progressBarFill = document.getElementById('progress-bar-fill');
+    const questionText = document.getElementById('question-text');
+
+    const explanationPanel = document.getElementById('explanation-panel');
+    const feedbackTitle = document.getElementById('feedback-title');
+    const feedbackIcon = document.getElementById('feedback-icon');
+    const explanationText = document.getElementById('explanation-text');
+    const bonusDisplay = document.getElementById('bonus-display');
+
+    const boxes = [
+      document.getElementById('box-0'),
+      document.getElementById('box-1'),
+      document.getElementById('box-2'),
+      document.getElementById('box-3')
+    ];
+    const optionTexts = [
+      document.getElementById('text-option-0'),
+      document.getElementById('text-option-1'),
+      document.getElementById('text-option-2'),
+      document.getElementById('text-option-3')
+    ];
+
+
+    /* ==========================================================================
+       5. LOGIK UTAMA PERMAINAN (GAME LOGIC)
+       ========================================================================== */
+    
+    // Muat Rekod Tertinggi
+    function loadHighScore() {
+      const savedScore = localStorage.getItem('misi_kata_hubung_score');
+      const savedTime = localStorage.getItem('misi_kata_hubung_time');
+      const savedPlayer = localStorage.getItem('misi_kata_hubung_player');
+
+      if (savedScore !== null) {
+        document.getElementById('high-score-display').textContent = `${savedScore} Mata (${formatTime(parseInt(savedTime))})`;
+        document.getElementById('high-score-player').textContent = savedPlayer || "Pemain";
+      }
+    }
+
+    // Mula Permainan
+    function startGame() {
+      const nameInput = document.getElementById('player-name-input').value.trim();
+      gameState.playerName = nameInput || "Pengembara";
+      gameState.currentQuestionIndex = 0;
+      gameState.score = 0;
+      gameState.correctCount = 0;
+      gameState.wrongCount = 0;
+      gameState.userAnswers = [];
+      gameState.elapsedSeconds = 0;
+      gameState.isAnswerLocked = false;
+
+      screenStart.classList.add('hidden');
+      screenResult.classList.add('hidden');
+      screenReview.classList.add('hidden');
+      screenGame.classList.remove('hidden');
+      screenGame.classList.add('flex');
+
+      // Mula Pemasa Utama
+      gameState.startTime = Date.now();
+      clearInterval(gameState.timerInterval);
+      gameState.timerInterval = setInterval(updateTimer, 1000);
+
+      loadQuestion(0);
+    }
+
+    // Kemaskini Pemasa
+    function updateTimer() {
+      gameState.elapsedSeconds++;
+      timerDisplay.textContent = formatTime(gameState.elapsedSeconds);
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const secs = (seconds % 60).toString().padStart(2, '0');
+      return `${mins}:${secs}`;
+    }
+
+    // Papar Soalan Semasa
+    function loadQuestion(index) {
+      gameState.isAnswerLocked = false;
+      explanationPanel.classList.add('hidden');
+      resetDwell();
+
+      const q = QUESTIONS[index];
+      
+      // Update UI Header
+      levelBadge.textContent = q.level;
+      questionProgress.textContent = `SOALAN ${index + 1} DARIPADA ${QUESTIONS.length}`;
+      progressBarFill.style.width = `${((index + 1) / QUESTIONS.length) * 100}%`;
+      scoreDisplay.textContent = gameState.score;
+      questionText.textContent = q.question;
+
+      // Reset & Set Options Box
+      boxes.forEach((box, i) => {
+        box.className = "mystery-box toy-card p-3 sm:p-5 flex flex-col justify-between select-none";
+        
+        // Warna Asal Kotak
+        if(i === 0) box.classList.add('bg-yellow-100', 'border-amber-400');
+        if(i === 1) box.classList.add('bg-blue-100', 'border-blue-400');
+        if(i === 2) box.classList.add('bg-emerald-100', 'border-emerald-400');
+        if(i === 3) box.classList.add('bg-purple-100', 'border-purple-400');
+
+        optionTexts[i].textContent = q.options[i];
+
+        // Reset Dwell Circle
+        const circle = box.querySelector('.dwell-circle-progress');
+        if (circle) circle.style.strokeDashoffset = '283';
+      });
+
+      gameState.questionStartTime = Date.now();
+    }
+
+    // Memilih Jawapan
+    function selectAnswer(selectedIndex) {
+      if (gameState.isAnswerLocked) return;
+      gameState.isAnswerLocked = true;
+
+      const q = QUESTIONS[gameState.currentQuestionIndex];
+      const isCorrect = selectedIndex === q.correct;
+      const timeTaken = (Date.now() - gameState.questionStartTime) / 1000;
+
+      // Bonus Kelajuan (jika betul & dijawab bawah 5 saat)
+      let bonusPoints = 0;
+      if (isCorrect && timeTaken <= 5) {
+        bonusPoints = 10;
+      }
+
+      if (isCorrect) {
+        gameState.score += 100 + bonusPoints;
+        gameState.correctCount++;
+        sound.playCorrect();
+        
+        // Panggil Kesan Konfeti
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      } else {
+        gameState.wrongCount++;
+        sound.playWrong();
+      }
+
+      // Rekodkan Jawapan Pemain
+      gameState.userAnswers.push({
+        questionIndex: gameState.currentQuestionIndex,
+        question: q.question,
+        options: q.options,
+        selected: selectedIndex,
+        correct: q.correct,
+        isCorrect: isCorrect,
+        explanation: q.explanation
+      });
+
+      // Kemaskini Visual Kotak Jawapan
+      boxes.forEach((box, i) => {
+        if (i === q.correct) {
+          box.classList.add('correct');
+        } else if (i === selectedIndex && !isCorrect) {
+          box.classList.add('wrong');
+        }
+      });
+
+      // Paparkan Panel Penerangan
+      setTimeout(() => {
+        explanationPanel.classList.remove('hidden');
+        if (isCorrect) {
+          feedbackTitle.textContent = `Jawapan Tepat! (+100 Mata)`;
+          feedbackTitle.className = "text-xl font-extrabold text-green-600 mb-1";
+          feedbackIcon.innerHTML = `<i class="fa-solid fa-circle-check"></i>`;
+          feedbackIcon.className = "text-4xl text-green-500 flex-shrink-0";
+          if (bonusPoints > 0) {
+            bonusDisplay.classList.remove('hidden');
+            bonusDisplay.textContent = `⚡ Bonus Kelajuan Pantas: +${bonusPoints} Mata!`;
+          } else {
+            bonusDisplay.classList.add('hidden');
+          }
+        } else {
+          feedbackTitle.textContent = `Kurang Tepat! (0 Mata)`;
+          feedbackTitle.className = "text-xl font-extrabold text-red-600 mb-1";
+          feedbackIcon.innerHTML = `<i class="fa-solid fa-circle-xmark"></i>`;
+          feedbackIcon.className = "text-4xl text-red-500 flex-shrink-0";
+          bonusDisplay.classList.add('hidden');
+        }
+        explanationText.textContent = q.explanation;
+        scoreDisplay.textContent = gameState.score;
+      }, 500);
+    }
+
+    // Soalan Seterusnya
+    function nextQuestion() {
+      if (gameState.currentQuestionIndex < QUESTIONS.length - 1) {
+        gameState.currentQuestionIndex++;
+        // Semak Perubahan Peringkat
+        if (gameState.currentQuestionIndex % 5 === 0) {
+          sound.playLevelUp();
+        }
+        loadQuestion(gameState.currentQuestionIndex);
+      } else {
+        endGame();
+      }
+    }
+
+    // Tamat Permainan & Papar Keputusan
+    function endGame() {
+      clearInterval(gameState.timerInterval);
+      sound.playGameEnd();
+
+      screenGame.classList.add('hidden');
+      screenGame.classList.remove('flex');
+      screenResult.classList.remove('hidden');
+
+      const totalAccuracy = Math.round((gameState.correctCount / QUESTIONS.length) * 100);
+      
+      document.getElementById('res-total-score').textContent = gameState.score;
+      document.getElementById('res-correct').textContent = `${gameState.correctCount} / ${QUESTIONS.length}`;
+      document.getElementById('res-wrong').textContent = gameState.wrongCount;
+      document.getElementById('res-accuracy').textContent = `${totalAccuracy}% (${formatTime(gameState.elapsedSeconds)})`;
+
+      // Tetapkan Lencana Pencapaian
+      const badgeTitle = document.getElementById('badge-title');
+      const badgeDesc = document.getElementById('badge-description');
+      const badgeIcon = document.getElementById('badge-icon');
+
+      if (totalAccuracy >= 90) {
+        badgeTitle.textContent = "PAKAR KATA HUBUNG";
+        badgeDesc.textContent = "Tahniah! Anda benar-benar pakar dan menguasai tatabahasa dengan cemerlang!";
+        badgeIcon.innerHTML = `<i class="fa-solid fa-crown text-yellow-500"></i>`;
+      } else if (totalAccuracy >= 75) {
+        badgeTitle.textContent = "PENAKLUK KATA HUBUNG";
+        badgeDesc.textContent = "Hebat! Anda mempunyai kefahaman yang sangat baik dalam Kata Hubung!";
+        badgeIcon.innerHTML = `<i class="fa-solid fa-trophy text-amber-500"></i>`;
+      } else if (totalAccuracy >= 50) {
+        badgeTitle.textContent = "PENJELAJAH KATA HUBUNG";
+        badgeDesc.textContent = "Usaha yang baik! Teruskan berlatih untuk menjadi lebih mahir.";
+        badgeIcon.innerHTML = `<i class="fa-solid fa-medal text-blue-500"></i>`;
+      } else {
+        badgeTitle.textContent = "PEJUANG KATA HUBUNG";
+        badgeDesc.textContent = "Jangan mengalah! Cuba lagi untuk meningkatkan pengetahuan anda.";
+        badgeIcon.innerHTML = `<i class="fa-solid fa-shield-halved text-slate-500"></i>`;
+      }
+
+      // Semak Rekod Tertinggi
+      const oldHighScore = parseInt(localStorage.getItem('misi_kata_hubung_score') || '0');
+      const oldTime = parseInt(localStorage.getItem('misi_kata_hubung_time') || '999999');
+
+      let isNewRecord = false;
+      if (gameState.score > oldHighScore) {
+        isNewRecord = true;
+      } else if (gameState.score === oldHighScore && gameState.elapsedSeconds < oldTime) {
+        isNewRecord = true;
+      }
+
+      if (isNewRecord) {
+        localStorage.setItem('misi_kata_hubung_score', gameState.score);
+        localStorage.setItem('misi_kata_hubung_time', gameState.elapsedSeconds);
+        localStorage.setItem('misi_kata_hubung_player', gameState.playerName);
+        document.getElementById('new-record-banner').classList.remove('hidden');
+      } else {
+        document.getElementById('new-record-banner').classList.add('hidden');
+      }
+
+      loadHighScore();
+    }
+
+    // Semakan Jawapan
+    function renderReview() {
+      const reviewList = document.getElementById('review-list');
+      reviewList.innerHTML = '';
+
+      gameState.userAnswers.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.className = `p-4 rounded-xl border-2 ${item.isCorrect ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`;
+
+        const letters = ['A', 'B', 'C', 'D'];
+
+        div.innerHTML = `
+          <div class="flex items-start justify-between font-bold mb-2">
+            <span class="text-slate-800">Soalan ${idx + 1}: ${item.question.replace('\n', '<br>')}</span>
+            <span class="${item.isCorrect ? 'text-green-600' : 'text-red-600'} text-sm font-extrabold flex-shrink-0 ml-2">
+              ${item.isCorrect ? '✓ BETUL' : '✗ SALAH'}
+            </span>
+          </div>
+          <div class="text-xs sm:text-sm text-slate-600 space-y-1 mb-2">
+            <div>Jawapan Anda: <strong>${letters[item.selected]}. ${item.options[item.selected]}</strong></div>
+            <div>Jawapan Betul: <strong class="text-green-700">${letters[item.correct]}. ${item.options[item.correct]}</strong></div>
+          </div>
+          <div class="text-xs bg-white/80 p-2 rounded-lg text-slate-700 border border-slate-200">
+            <strong>Penerangan:</strong> ${item.explanation}
+          </div>
+        `;
+        reviewList.appendChild(div);
+      });
+    }
+
+
+    /* ==========================================================================
+       6. SISTEM DWELL TIME (MENAHAN JARI) & TETIKUS
+       ========================================================================== */
+    function checkDwell(boxIndex) {
+      if (gameState.isAnswerLocked) return;
+
+      if (currentHoveredBox !== boxIndex) {
+        resetDwell();
+        currentHoveredBox = boxIndex;
+        dwellStartTime = Date.now();
+        sound.playHover();
+        boxes[boxIndex].classList.add('hovered');
+      } else {
+        const elapsed = Date.now() - dwellStartTime;
+        const progress = Math.min(elapsed / DWELL_DURATION, 1);
+        
+        // Kemaskini SVG Circle
+        const circle = boxes[boxIndex].querySelector('.dwell-circle-progress');
+        if (circle) {
+          const offset = 283 - (283 * progress);
+          circle.style.strokeDashoffset = offset;
+        }
+
+        if (elapsed >= DWELL_DURATION) {
+          selectAnswer(boxIndex);
+          resetDwell();
+        }
+      }
+    }
+
+    function resetDwell() {
+      if (currentHoveredBox !== null) {
+        boxes[currentHoveredBox].classList.remove('hovered');
+        const circle = boxes[currentHoveredBox].querySelector('.dwell-circle-progress');
+        if (circle) circle.style.strokeDashoffset = '283';
+      }
+      currentHoveredBox = null;
+      dwellStartTime = null;
+    }
+
+    // Event Listener Tetikus / Sentuhan Direct
+    boxes.forEach((box, i) => {
+      box.addEventListener('mouseenter', () => {
+        if (!gameState.useCamera) checkDwell(i);
+      });
+      box.addEventListener('mouseleave', () => {
+        if (!gameState.useCamera) resetDwell();
+      });
+      box.addEventListener('click', () => {
+        selectAnswer(i);
+      });
+    });
+
+
+    /* ==========================================================================
+       7. INTEGRASI MEDIAPIPE HANDS (PENGESANAN JARI TELUNJUK)
+       ========================================================================== */
+    let cameraInstance = null;
+
+    function initCamera() {
+      const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.6,
+        minTrackingConfidence: 0.6
+      });
+
+      hands.onResults(onHandResults);
+
+      cameraInstance = new Camera(webcamVideo, {
+        onFrame: async () => {
+          if (gameState.useCamera) {
+            await hands.send({ image: webcamVideo });
+          }
+        },
+        width: 320,
+        height: 240
+      });
+
+      cameraInstance.start().then(() => {
+        document.getElementById('camera-status').textContent = "Kamera Aktif";
+      }).catch(err => {
+        console.warn("Kamera tidak dapat diakses:", err);
+        document.getElementById('camera-status').textContent = "Mod Tetikus Aktif";
+        gameState.useCamera = false;
+        document.getElementById('toggle-camera').checked = false;
+      });
+    }
+
+    function onHandResults(results) {
+      const canvasCtx = webcamCanvas.getContext('2d');
+      canvasCtx.clearRect(0, 0, webcamCanvas.width, webcamCanvas.height);
+
+      if (!gameState.useCamera) {
+        fingerCursor.style.display = 'none';
+        return;
+      }
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        
+        // Landmark 8 ialah Hujung Jari Telunjuk (Index Finger Tip)
+        const indexTip = landmarks[8];
+
+        // Mirror X kerana kamera dicerminkan (-scale-x-100)
+        const x = (1 - indexTip.x) * window.innerWidth;
+        const y = indexTip.y * window.innerHeight;
+
+        // Tunjukkan Cursor Jari Visual
+        fingerCursor.style.display = 'block';
+        fingerCursor.style.left = `${x}px`;
+        fingerCursor.style.top = `${y}px`;
+
+        // Semak jika kursor berada di dalam kawasan kotak misteri
+        if (!gameState.isAnswerLocked && screenGame.offsetWidth > 0) {
+          let insideBoxIndex = null;
+          boxes.forEach((box, idx) => {
+            const rect = box.getBoundingClientRect();
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+              insideBoxIndex = idx;
+            }
+          });
+
+          if (insideBoxIndex !== null) {
+            checkDwell(insideBoxIndex);
+          } else {
+            resetDwell();
+          }
+        }
+      } else {
+        fingerCursor.style.display = 'none';
+        resetDwell();
+      }
+    }
+
+
+    /* ==========================================================================
+       8. EVENT LISTENERS UTAMA & PENGENDALIAN BUTTONS
+       ========================================================================== */
+    document.getElementById('btn-start-game').addEventListener('click', startGame);
+    
+    document.getElementById('btn-how-to-play').addEventListener('click', () => {
+      modalInstructions.classList.remove('hidden');
+    });
+    
+    document.getElementById('btn-close-instructions').addEventListener('click', () => {
+      modalInstructions.classList.add('hidden');
+    });
+    
+    document.getElementById('btn-close-instructions-2').addEventListener('click', () => {
+      modalInstructions.classList.add('hidden');
+    });
+
+    document.getElementById('btn-next-question').addEventListener('click', nextQuestion);
+
+    document.getElementById('btn-restart').addEventListener('click', startGame);
+
+    document.getElementById('btn-review').addEventListener('click', () => {
+      screenResult.classList.add('hidden');
+      screenReview.classList.remove('hidden');
+      renderReview();
+    });
+
+    document.getElementById('btn-back-to-result').addEventListener('click', () => {
+      screenReview.classList.add('hidden');
+      screenResult.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-home').addEventListener('click', () => {
+      screenResult.classList.add('hidden');
+      screenStart.classList.remove('hidden');
+      loadHighScore();
+    });
+
+    // Togol Buka/Tutup Suara
+    document.getElementById('btn-toggle-sound').addEventListener('click', () => {
+      sound.enabled = !sound.enabled;
+      const btn = document.getElementById('btn-toggle-sound');
+      btn.innerHTML = sound.enabled ? `<i class="fa-solid fa-volume-high"></i>` : `<i class="fa-solid fa-volume-xmark"></i>`;
+    });
+
+    // Togol Kamera
+    document.getElementById('toggle-camera').addEventListener('change', (e) => {
+      gameState.useCamera = e.target.checked;
+      if (!gameState.useCamera) {
+        fingerCursor.style.display = 'none';
+        cameraContainer.classList.add('opacity-40');
+      } else {
+        cameraContainer.classList.remove('opacity-40');
+      }
+    });
+
+    // Mulakan Sistem Kamera dan Rekod semasa Halaman Dimuatkan
+    window.addEventListener('DOMContentLoaded', () => {
+      loadHighScore();
+      initCamera();
+    });
+  </script>
+</body>
+</html>
